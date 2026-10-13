@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bulletin Topic Map</title>
+  <meta name="description" content="Every UK Democracy Bulletin item, grouped by topic. Distance from the centre is relevance.">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    try {
+      const t = localStorage.getItem("topic-map-theme");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <canvas id="map" aria-label="Map of bulletin items grouped by topic" role="img"></canvas>
+
+  <header class="bar">
+    <div class="brand">
+      <h1>Topic map</h1>
+      <p id="subtitle">Loading…</p>
+    </div>
+    <div class="filters" role="group" aria-label="Filters">
+      <label class="search">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+        <input id="q" type="search" placeholder="Search headlines, text, links" autocomplete="off" spellcheck="false">
+        <kbd>/</kbd>
+      </label>
+      <div class="chips" id="years" aria-label="Years"></div>
+      <div class="chips" id="tiers" aria-label="Fit"></div>
+      <label class="toggle"><input type="checkbox" id="chg"><span>Changes only</span></label>
+      <label class="toggle"><input type="checkbox" id="out"><span>Out of scope</span></label>
+    </div>
+    <div class="actions">
+      <span id="count" class="count" aria-live="polite"></span>
+      <button id="listBtn" class="icon" title="List view (table of items in view)" aria-label="List view">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10"/></svg>
+      </button>
+      <button id="resetBtn" class="icon" title="Reset view" aria-label="Reset view">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.6" class="fill"/><path d="M8 1v2.5M8 12.5V15M1 8h2.5M12.5 8H15"/></svg>
+      </button>
+      <button id="fullBtn" class="icon" title="Full screen (Esc to exit)" aria-label="Full screen">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M13.5 10v3.5H10M10 2.5h3.5V6M6 13.5H2.5V10"/></svg>
+      </button>
+      <button id="helpBtn" class="icon" title="How to read this" aria-label="How to read this">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.6-.7 1.1v.4"/><circle cx="8" cy="11.6" r=".4" class="fill"/></svg>
+      </button>
+      <button id="themeBtn" class="icon" title="Toggle theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="legend" id="legend" aria-label="Topic groups"></nav>
+
+  <button class="exit-full icon" id="exitFull" title="Exit full screen (Esc)" aria-label="Exit full screen">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M10 13.5V10h3.5M13.5 6H10V2.5M2.5 10H6v3.5"/></svg>
+  </button>
+
+  <p class="hint" id="hint">Scroll or pinch to zoom · drag to pan · click a dot to read it</p>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden>
+    <div class="tt-h"></div>
+    <div class="tt-meta"><span class="key"></span><span class="tt-g"></span></div>
+    <div class="tt-sub"></div>
+  </div>
+
+  <aside class="panel" id="panel" aria-label="Item detail" hidden>
+    <button class="close icon" id="panelClose" aria-label="Close">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+    <div class="p-group"><span class="key"></span><span class="p-gname"></span></div>
+    <div class="fitbar" aria-hidden="true"><span></span></div>
+    <p class="p-fit"></p>
+    <h2 class="p-h"></h2>
+    <p class="p-meta"></p>
+    <p class="p-body"></p>
+    <section class="p-why"><h3>Why it matters</h3><p></p></section>
+    <section class="p-note"><h3>Classifier's boundary note</h3><p></p></section>
+    <section class="p-also"><h3>Also touches</h3><div class="tags"></div></section>
+    <section class="p-links"><h3>Links</h3><ul></ul></section>
+  </aside>
+
+  <aside class="list" id="list" aria-label="List view" hidden>
+    <div class="list-head">
+      <h2>Items in view</h2>
+      <span id="listCount"></span>
+      <button class="close icon" id="listClose" aria-label="Close">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="list-scroll">
+      <table>
+        <thead><tr><th>Headline</th><th>Topic group</th><th>Relevance</th><th>Date</th></tr></thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </aside>
+
+  <dialog id="help">
+    <form method="dialog"><button class="close icon" aria-label="Close">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button></form>
+    <h2>How to read this map</h2>
+    <p>Each dot is one item from the UK Democracy Bulletin: a story, note, caption or list entry. Each bubble is a <strong>topic group</strong>, and an item sits in the group it is mainly about.</p>
+    <p><strong>Distance from the centre is relevance.</strong> The centre of each bubble is 100% relevant to its topic group, and the outer ring is 0%. The faint rings mark 75%, 50% and 25%. The scale is the same in every bubble, so you can compare distances across groups. Where many items share a score they push each other apart into a band, and where no items have a score you see a gap. The shape comes from the data, and the angle around the centre means nothing.</p>
+    <p>Relevance starts from the classifier's confidence (Core 100%, Arguable 60%, Stretch 20%). It loses 10 points if a boundary rule had to decide the item, and 8 points for each other topic group it touches (up to two). The dot style shows the confidence:</p>
+    <dl class="tiers">
+      <dt>Core</dt><dd>Solid. The classifier was confident about the topic group.</dd>
+      <dt>Arguable</dt><dd>Light. There's a case for the group, but it could be argued.</dd>
+      <dt>Stretch</dt><dd>Hollow. The group's boundary rules didn't really settle it.</dd>
+    </dl>
+    <p>The scores come in a few steps rather than a smooth range, which is why dots gather in bands.</p>
+    <p><strong>Out-of-scope items</strong> are the ones the classifier ruled are not democracy stories, such as jobs, events and funding calls. They're hidden until you switch them on.</p>
+    <p class="muted" id="helpVersion"></p>
+  </dialog>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
